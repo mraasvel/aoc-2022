@@ -36,6 +36,10 @@ public class Day01 {
                     elf += Integer.parseInt(line);
                 }
             }
+            if (elf != 0) {
+                elves.add(elf);
+                addToTop(elf);
+            }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
