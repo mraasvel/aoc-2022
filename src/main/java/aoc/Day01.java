@@ -57,8 +57,9 @@ public class Day01 {
 
         // PQ solution
         // PQ contains at most 3 elements making it O(1) in terms of space complexity
+        // The largest element is the third element
         assert top_elves.size() == 3;
-        assert p1 == top_elves.peek();
+        assert p1 == top_elves.stream().skip(2).iterator().next();
         assert p2 == top_elves.stream().reduce(0, Integer::sum);
 
         System.out.printf("P1: %d\n", p1);
