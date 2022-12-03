@@ -42,6 +42,7 @@ public class Day01 {
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+            System.exit(1);
         }
     }
     void solve() {

@@ -20,6 +20,7 @@ public class Day02 {
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+            System.exit(1);
         }
     }
 
@@ -65,6 +66,7 @@ public class Day02 {
         // X,Y,Z = R,P,S
         char x = move.charAt(0);
         char y = move.charAt(2);
+        // a pair (x, y) always maps to the same score so we could just memoization here
         p1 += score_p1(x, y);
         p2 += score_p2(x, y);
     }
