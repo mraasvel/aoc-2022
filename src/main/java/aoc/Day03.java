@@ -1,23 +1,16 @@
 package aoc;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Day03 {
-
-    int sum = 0;
-    ArrayList<String> lines = new ArrayList<>();
-
     void partOne(String filename) {
         try {
-            Scanner scanner = new Scanner(new File((filename)));
-            while (scanner.hasNextLine()) {
-                String line = scanner.next();
-                handle_rucksack(line);
-                lines.add(line);
-            }
+            BufferedReader reader = new BufferedReader(new FileReader(filename));
+            int sum = reader.lines().map(Day03::handle_rucksack).reduce(0, Integer::sum);
             System.out.printf("P1: %d\n", sum);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -25,7 +18,7 @@ public class Day03 {
         }
     }
 
-    int getPriority(char ch) {
+    static int getPriority(char ch) {
         if (Character.isUpperCase(ch)) {
             return ch - 'A' + 27;
         } else {
@@ -36,46 +29,46 @@ public class Day03 {
         }
     }
 
-    void handle_rucksack(String rs) {
+    static int handle_rucksack(String rs) {
         String A = rs.substring(0, rs.length() / 2);
-        String B = rs.substring(rs.length() / 2);
+        Set<Character> B = rs.substring(rs.length() / 2).chars().mapToObj(ch -> (char)ch).collect(Collectors.toSet());
+        int score = 0;
         for (int i = 0; i < A.length(); i++) {
             char ch = A.charAt(i);
-            if (charAppearsIn(B, ch)) {
-                int score = getPriority(ch);
-                sum += score;
+            if (B.contains(ch)) {
+                score = getPriority(ch);
                 break;
             }
         }
+        return score;
     }
 
-    boolean charAppearsIn(String s, char ch) {
-        return s.indexOf(ch) != -1;
-    }
-
-    void partTwo() {
-        if (lines.isEmpty()) {
-            throw new IllegalStateException();
-        }
-        int priority = 0;
-        for (int i = 0; i < lines.size(); i += 3) {
-            String a = lines.get(i);
-            String b = lines.get(i + 1);
-            String c = lines.get(i + 2);
-            for (int j = 0; j < a.length(); j++) {
-                char ch = a.charAt(j);
-                if (charAppearsIn(b, ch) && charAppearsIn(c, ch)) {
-                    priority += getPriority(ch);
-                    break;
+    void partTwo(String filename) {
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(filename));
+            int priority = 0;
+            for (int i = 0; i < lines.size(); i += 3) {
+                String a = lines.get(i);
+                Set<Character> b = lines.get(i + 1).chars().mapToObj(ch -> (char)ch).collect(Collectors.toSet());
+                Set<Character> c = lines.get(i + 2).chars().mapToObj(ch -> (char)ch).collect(Collectors.toSet());
+                for (int j = 0; j < a.length(); j++) {
+                    char ch = a.charAt(j);
+                    if (b.contains(ch) && c.contains(ch)) {
+                        priority += getPriority(ch);
+                        break;
+                    }
                 }
             }
+            System.out.printf("Priority: %d\n", priority);
+        } catch (IOException e) {
+            System.exit(1);
         }
-        System.out.printf("Priority: %d\n", priority);
     }
 
     public static void main(String[] args) {
         Day03 day03 = new Day03();
-        day03.partOne("inputs/03.txt");
-        day03.partTwo();
+        String filename = "inputs/03.txt";
+        day03.partOne(filename);
+        day03.partTwo(filename);
     }
 }
