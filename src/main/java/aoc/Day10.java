@@ -9,11 +9,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 interface Operation {
-    int execute(int x);
-    void doWork();
-    int cycleTimeLeft();
-    void reset();
-
     static Operation fromLine(String line) {
         if (line.equals("noop")) {
             return new NoOp();
@@ -25,6 +20,14 @@ interface Operation {
             return new Add(Integer.parseInt(parts[1]));
         }
     }
+
+    int execute(int x);
+
+    void doWork();
+
+    int cycleTimeLeft();
+
+    void reset();
 }
 
 class NoOp implements Operation {
@@ -85,6 +88,14 @@ public class Day10 {
             e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    public static void main(String[] args) {
+        String filename = "inputs/10.txt";
+        int p1 = new Day10(filename).partOne();
+        System.out.printf("-- Part 1 --\n%d\n", p1);
+        System.out.println("-- Part 2 --");
+        new Day10(filename).partTwo();
     }
 
     Operation nextOperation() {
@@ -152,12 +163,5 @@ public class Day10 {
                 if (current == null) break;
             }
         }
-    }
-    public static void main(String[] args) {
-        String filename = "inputs/10.txt";
-        Day10 day10 = new Day10(filename);
-        int p1 = day10.partOne();
-        System.out.printf("p1: %d\n", p1);
-        day10.partTwo();
     }
 }
