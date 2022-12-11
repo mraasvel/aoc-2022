@@ -1,4 +1,4 @@
-package aoc;
+package aoc.day11;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,10 +10,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-interface Operation2 {
-    static Operation2 operationFactory(String s) {
+interface Operation {
+    static Operation operationFactory(String s) {
         if (s.equals("+")) {
-            return new Plus();
+            return new Add();
         } else if (s.equals("*")) {
             return new Multiply();
         } else {
@@ -23,9 +23,9 @@ interface Operation2 {
     long execute(Operand a, Operand b, long oldValue);
 }
 
-class Plus implements Operation2 {
+class Add implements Operation {
     public long execute(Operand a, Operand b, long oldValue) {
-        return a.getValue(oldValue) + (b.getValue(oldValue));
+        return Math.addExact(a.getValue(oldValue), b.getValue(oldValue));
     }
 
     @Override
@@ -34,9 +34,9 @@ class Plus implements Operation2 {
     }
 }
 
-class Multiply implements Operation2 {
+class Multiply implements Operation {
     public long execute(Operand a, Operand b, long oldValue) {
-        return a.getValue(oldValue) * (b.getValue(oldValue));
+        return Math.multiplyExact(a.getValue(oldValue), b.getValue(oldValue));
     }
 
     @Override
@@ -85,9 +85,9 @@ class Number implements Operand {
 class Expression {
     Operand a;
     Operand b;
-    Operation2 op;
+    Operation op;
 
-    Expression(Operand a, Operand b, Operation2 op) {
+    Expression(Operand a, Operand b, Operation op) {
         this.a = a;
         this.b = b;
         this.op = op;
@@ -95,11 +95,14 @@ class Expression {
 
     static Expression parseOperation(String line) {
         Matcher matcher = Pattern.compile("new =\\s*(\\S+)\\s*(.)\\s*(\\S+)$").matcher(line);
-        matcher.find();
+
+        if (!matcher.find()) {
+            throw new RuntimeException(String.format("no match on: %s", line));
+        }
 
         Operand a = Operand.operandFactory(matcher.group(1));
         Operand b = Operand.operandFactory(matcher.group(3));
-        Operation2 op = Operation2.operationFactory(matcher.group(2));
+        Operation op = Operation.operationFactory(matcher.group(2));
         return new Expression(a, b, op);
     }
 
@@ -119,6 +122,7 @@ class Monkey {
     private final long divisibleBy;
     private final long trueMonkey;
     private final long falseMonkey;
+    private long modulo = 1;
     private long itemsInspected = 0;
 
     Monkey(String[] data) {
@@ -142,7 +146,9 @@ class Monkey {
 
     long parseNumber(String line) {
         Matcher matcher = Pattern.compile("(\\d+)").matcher(line);
-        matcher.find();
+        if (!matcher.find()) {
+            throw new RuntimeException(String.format("no match on: %s", line));
+        }
         return Long.parseLong(matcher.group(0));
     }
 
@@ -170,7 +176,12 @@ class Monkey {
     void inspectItem() {
         this.itemsInspected += 1;
         long oldValue = this.peek();
-        long newValue = this.operation.computeValue(oldValue) / 3;
+        long newValue;
+        if (modulo == 0) {
+            newValue = this.operation.computeValue(oldValue) / 3;
+        } else {
+            newValue = this.operation.computeValue(oldValue) % modulo;
+        }
         this.updateTop(newValue);
     }
 
@@ -189,14 +200,28 @@ class Monkey {
     long getItemsInspected() {
         return itemsInspected;
     }
+
+    public long getDivisor() {
+        return divisibleBy;
+    }
+
+    void setModulo(long modulo) {
+        this.modulo = modulo;
+    }
 }
 
 public class Day11 {
     ArrayList<Monkey> monkeys = null;
-    Day11(String filename) {
+    Day11(String filename, boolean isPartOne) {
         try {
             String[] input = Files.readString(Paths.get(filename)).split("\n\n");
             monkeys = Arrays.stream(input).map(x -> x.split("\n")).map(Monkey::new).collect(Collectors.toCollection(ArrayList::new));
+            if (isPartOne) {
+                monkeys.forEach(monkey -> monkey.setModulo(0));
+            } else {
+                long modulo = monkeys.stream().map(Monkey::getDivisor).reduce((long)1, (x, y) -> x * y);
+                monkeys.forEach(monkey -> monkey.setModulo(modulo));
+            }
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
@@ -214,8 +239,8 @@ public class Day11 {
         }
     }
 
-    long partOne() {
-        for (int i = 0; i < 20; i++) {
+    long run(int numRounds) {
+        for (int i = 0; i < numRounds; i++) {
             doRound();
         }
         monkeys.sort((Monkey a, Monkey b) -> Long.compare(b.getItemsInspected(), a.getItemsInspected()));
@@ -223,9 +248,12 @@ public class Day11 {
     }
 
     public static void main(String[] args) {
-        String filename = "inputs/ex.txt";
-        Day11 day11 = new Day11(filename);
-        long p1 = day11.partOne();
+        String filename = "inputs/11.txt";
+        Day11 a = new Day11(filename, true);
+        long p1 = a.run(20);
+        Day11 b = new Day11(filename, false);
+        long p2 = b.run(10000);
         System.out.printf("p1: %d\n", p1);
+        System.out.printf("p2: %d\n", p2);
     }
 }
