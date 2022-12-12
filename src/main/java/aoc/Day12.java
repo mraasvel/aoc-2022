@@ -51,36 +51,33 @@ public class Day12 {
 
     void solve() {
         this.costs.put(position, 0);
-        Point current;
-        while (true) {
-            current = nextMinDistance();
-            if (current == null) {
-                break;
-            }
-            this.visited.add(current);
-            int currentCost = costs.get(current);
-            for (Point adj : getAdjacent(current)) {
+        for (Map.Entry<Point, Integer> current = nextMinDistance(); current != null; current = nextMinDistance()) {
+            Point point = current.getKey();
+            this.visited.add(point);
+            int currentCost = current.getValue();
+            getAdjacent(point).forEach((adj) -> {
                 int cost = currentCost + 1;
                 if (!costs.containsKey(adj) || cost < costs.get(adj)) {
                     costs.put(adj, cost);
-                    previous.put(adj, current);
+                    previous.put(adj, point);
                 }
-            }
+            });
         }
     }
 
     // smallest point in costs that was not yet visited
-    Point nextMinDistance() {
-        Point min = null;
-        int minCost = 0;
-        for (Map.Entry<Point, Integer> set : costs.entrySet()) {
-            Integer cost = set.getValue();
-            if (cost != null && !visited.contains(set.getKey()) && (min == null || cost < minCost)) {
-                min = set.getKey();
-                minCost = cost;
-            }
-        }
-        return min;
+    Map.Entry<Point, Integer> nextMinDistance() {
+        return costs.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue() != null && !visited.contains(entry.getKey()))
+                .reduce(null, (current, entry) -> {
+                    // compareTo returns 1 if current > entry.getValue()
+                    if (current == null || entry.getValue() < current.getValue()) {
+                        return entry;
+                    } else {
+                        return current;
+                    }
+                });
     }
 
     ArrayList<Point> getAdjacent(Point p) {
@@ -94,9 +91,7 @@ public class Day12 {
         return adj.stream()
                 .filter(this::boundsCheck)
                 .filter(a -> !visited.contains(a))
-                // at most one lower
-                // z -> y :: getHeight(adj) - getHeight(p) = -1
-                // x -> z :: getHeight(adj) - getHeight(p) = 2
+                // at most one lower (because we're doing it in reverse, starting at the end)
                 .filter(a -> getHeight(a) - height >= -1)
                 .collect(Collectors.toCollection(ArrayList::new));
     }
@@ -142,17 +137,16 @@ public class Day12 {
     }
 
     Integer getLowestA() {
-        Integer min = null;
-        for (int y = 0; y < map.size(); y++) {
-            for (int x = 0; x < map.get(y).size(); x++) {
-                if (getHeight(x, y) == 0) {
-                    Integer cost = getCost(x, y);
-                    if (cost != null && (min == null || cost < min)) {
-                        min = cost;
+        Map.Entry<Point, Integer> entry = this.costs.entrySet().stream()
+                .filter(e -> getHeight(e.getKey()) == 0)
+                // min_by_key
+                .reduce(null, (current, e) -> {
+                    if (current == null || e.getValue() < current.getValue()) {
+                        return e;
+                    } else {
+                        return current;
                     }
-                }
-            }
-        }
-        return min;
+                });
+        return entry == null ? null : entry.getValue();
     }
 }
