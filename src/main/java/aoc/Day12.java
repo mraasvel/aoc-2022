@@ -9,20 +9,11 @@ import java.util.stream.Collectors;
 public class Day12 {
 
     List<List<Integer>> map = new ArrayList<>();
-    private Point position = null;
-    private Point end = null;
-
     HashMap<Point, Integer> costs;
     HashMap<Point, Point> previous;
     HashSet<Point> visited;
-
-    public static void main(String[] args) throws IOException {
-        String filename = "inputs/12.txt";
-        Day12 solver = new Day12(filename);
-        solver.solve();
-        int p1 = solver.getCost(solver.end);
-        System.out.println(p1);
-    }
+    private Point position = null;
+    private Point start = null;
 
     Day12(String filename) throws IOException {
         this.costs = new HashMap<>();
@@ -35,10 +26,10 @@ public class Day12 {
             for (int x = 0; x < lines.get(y).length(); x++) {
                 char ch = lines.get(y).charAt(x);
                 if (ch == 'S') {
-                    this.position = new Point(x, y);
+                    this.start = new Point(x, y);
                     ch = 'a';
                 } else if (ch == 'E') {
-                    this.end = new Point(x, y);
+                    this.position = new Point(x, y);
                     ch = 'z';
                 }
                 row.add(ch - 'a');
@@ -46,6 +37,16 @@ public class Day12 {
             }
             this.map.add(row);
         }
+    }
+
+    public static void main(String[] args) throws IOException {
+        String filename = "inputs/12.txt";
+        Day12 solver = new Day12(filename);
+        solver.solve();
+        int p1 = solver.getCost(solver.start);
+        System.out.printf("p1: %d\n", p1);
+        int p2 = solver.getLowestA();
+        System.out.printf("p2: %d\n", p2);
     }
 
     void solve() {
@@ -66,7 +67,6 @@ public class Day12 {
                 }
             }
         }
-        System.out.println(visited.size());
     }
 
     // smallest point in costs that was not yet visited
@@ -93,9 +93,11 @@ public class Day12 {
         int height = getHeight(p);
         return adj.stream()
                 .filter(this::boundsCheck)
-                .filter(point -> !visited.contains(point))
-                // at most one higher
-                .filter(point -> getHeight(point) - height <= 1)
+                .filter(a -> !visited.contains(a))
+                // at most one lower
+                // z -> y :: getHeight(adj) - getHeight(p) = -1
+                // x -> z :: getHeight(adj) - getHeight(p) = 2
+                .filter(a -> getHeight(a) - height >= -1)
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
@@ -120,5 +122,37 @@ public class Day12 {
 
     Integer getCost(Point p) {
         return costs.get(p);
+    }
+
+    Integer getCost(int x, int y) {
+        return getCost(new Point(x, y));
+    }
+
+    void printCosts() {
+        for (int y = 0; y < map.size(); y++) {
+            for (int x = 0; x < map.get(y).size(); x++ ) {
+                if (getCost(x, y) == null) {
+                    System.out.printf(" N%d", getHeight(x, y));
+                } else {
+                    System.out.printf("%3d", getHeight(x, y));
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    Integer getLowestA() {
+        Integer min = null;
+        for (int y = 0; y < map.size(); y++) {
+            for (int x = 0; x < map.get(y).size(); x++) {
+                if (getHeight(x, y) == 0) {
+                    Integer cost = getCost(x, y);
+                    if (cost != null && (min == null || cost < min)) {
+                        min = cost;
+                    }
+                }
+            }
+        }
+        return min;
     }
 }
