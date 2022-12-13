@@ -14,9 +14,7 @@ enum PacketType {
     Integer
 }
 
-interface Packet {
-    // returns -1 on A is smaller, 0 on equal, 1 on other is smaller
-    int compareTo(Packet rhs);
+interface Packet extends Comparable<Packet> {
     PacketType getType();
 }
 
@@ -178,25 +176,15 @@ public class Day13 {
         return sum;
     }
 
-    int findSortedPosition(Packet x) {
-        int position = 0;
-        for (List<Packet> pair : packets) {
-            for (Packet packet : pair) {
-                if (x.compareTo(packet) > 0) {
-                    position++;
-                }
-            }
-        }
-        return position;
-    }
-
-    // we only have to find the sorted position of a and b
     int partTwo() {
         Packet a = new Parser("[[2]]").parse();
         Packet b = new Parser("[[6]]").parse();
-        // index starts at 1, b is larger than a so we add 2 there
-        int sortedA = findSortedPosition(a) + 1;
-        int sortedB = findSortedPosition(b) + 2;
+        packets.add(new ArrayList<>() {{ add(a); add(b); }});
+        List<Packet> sorted = packets.stream().flatMap(List::stream).sorted().collect(Collectors.toCollection(ArrayList::new));
+
+        // index starts at 1
+        int sortedA = sorted.indexOf(a) + 1;
+        int sortedB = sorted.indexOf(b) + 1;
         return sortedA * sortedB;
     }
 }
