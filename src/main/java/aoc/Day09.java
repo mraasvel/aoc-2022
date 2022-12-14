@@ -21,7 +21,7 @@ class Point {
         this.y = other.y;
     }
 
-    Point add(Point other) {
+    public Point add(Point other) {
         return new Point(this.x + other.x, this.y + other.y);
     }
 
@@ -52,7 +52,7 @@ class Point {
         return Math.abs(x - other.x) <= 1 && Math.abs(y - other.y) <= 1;
     }
 
-    Point directionTo(Point other) {
+    public Point directionTo(Point other) {
         int newX = other.x - x;
         int newY = other.y - y;
         if (newX != 0) {
