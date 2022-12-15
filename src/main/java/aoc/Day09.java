@@ -21,6 +21,10 @@ class Point {
         this.y = other.y;
     }
 
+    public int manhattanDistance(Point other) {
+        return Math.abs(this.x - other.x) + Math.abs(this.y - other.y);
+    }
+
     public Point add(Point other) {
         return new Point(this.x + other.x, this.y + other.y);
     }
