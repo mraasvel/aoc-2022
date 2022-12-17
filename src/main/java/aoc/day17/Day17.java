@@ -5,7 +5,127 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Stack;
 import java.util.stream.Collectors;
+
+class UniqueState {
+    static private final Point LEFT = new Point(-1, 0);
+    static private final Point RIGHT = new Point(1, 0);
+    static private final Point DOWN = new Point(0, -1);
+    int directionIndex;
+    long numRocks;
+    Grid grid;
+    byte[] directions;
+    Rock rock = null;
+
+    UniqueState(long numRocks, int directionIndex, Grid grid, byte[] directions) {
+        this.numRocks = numRocks;
+        this.directionIndex = directionIndex;
+        this.grid = new Grid(grid);
+        this.directions = directions;
+    }
+
+    static UniqueState defaultState(byte[] directions) {
+        return new UniqueState(0, 0, new Grid(), directions);
+    }
+
+    // generate the next state with the next rock placed
+    static UniqueState f(UniqueState state, byte[] directions) {
+        UniqueState next = new UniqueState(state.numRocks, state.directionIndex, state.grid, directions);
+        next.rock = next.nextRock();
+        do {
+            switch (next.nextDirection(directions)) {
+                case '>' -> next.moveRock(RIGHT);
+                case '<' -> next.moveRock(LEFT);
+            }
+        } while (next.moveRock(DOWN));
+        next.rest();
+        return next;
+    }
+
+    private ArrayList<Point> getNewRockPoints(int type) {
+        ArrayList<Point> points = new ArrayList<>();
+        if (type == 0) {
+            for (int x = 0; x < 4; x++) {
+                points.add(new Point(x, 0));
+            }
+        } else if (type == 1) {
+            points.add(new Point(0, 1));
+            points.add(new Point(1, 1));
+            points.add(new Point(2, 1));
+            points.add(new Point(1, 0));
+            points.add(new Point(1, 2));
+        } else if (type == 2) {
+            for (int x = 0; x < 3; x++) {
+                points.add(new Point(x, 0));
+            }
+            points.add(new Point(2, 1));
+            points.add(new Point(2, 2));
+        } else if (type == 3) {
+            for (int y = 0; y < 4; y++) {
+                points.add(new Point(0, y));
+            }
+        } else if (type == 4) {
+            for (int x = 0; x < 2; x++) {
+                for (int y = 0; y < 2; y++) {
+                    points.add(new Point(x, y));
+                }
+            }
+        }
+        return points;
+    }
+
+    Point getNewRockPosition() {
+        return new Point(2, getHighestPoint() + 3);
+    }
+
+    byte nextDirection(byte[] directions) {
+        byte dir = directions[directionIndex];
+        directionIndex = (directionIndex + 1) % directions.length;
+        return dir;
+    }
+
+    Rock nextRock() {
+        Rock rock = new Rock(getNewRockPoints(rockType()));
+        numRocks += 1;
+        Point transformation = getNewRockPosition();
+        return rock.move(transformation);
+    }
+
+    // move rock if possible
+    // returns false and doesn't modify currentRock if not possible
+    boolean moveRock(Point delta) {
+        Rock next = rock.move(delta);
+        if (grid.canPlace(next)) {
+            rock = next;
+            return true;
+        }
+        return false;
+    }
+
+    UniqueState next() {
+        return UniqueState.f(this, this.directions);
+    }
+
+    void rest() {
+        grid.addRock(rock);
+        rock = null;
+    }
+
+    int rockType() {
+        return (int)(this.numRocks % 5);
+    }
+
+    public boolean equals(UniqueState other) {
+        return this.directionIndex == other.directionIndex
+                && rockType() == other.rockType()
+                && grid.hasSameShape(other.grid);
+    }
+
+    public long getHighestPoint() {
+        return grid.highestPoint;
+    }
+}
 
 class Point {
     public long x;
@@ -78,6 +198,16 @@ class Grid {
         this.width = 7;
         this.highestPoint = 0; // floor
         this.points = new HashSet<>();
+        // add floor points
+        for (int x = 0; x < width; x++) {
+            points.add(new Point(x, -1));
+        }
+    }
+
+    Grid(Grid other) {
+        this.width = other.width;
+        this.highestPoint = other.highestPoint;
+        this.points = new HashSet<>(other.points);
     }
 
     // call after rock is stationary
@@ -87,11 +217,61 @@ class Grid {
             highestPoint = Math.max(height, highestPoint);
             points.add(point);
         }
+        filterPoints();
+    }
+
+    // remove points that are not relevant, aka points that are not reachable from above
+    void filterPoints() {
+        // highestPoint as Y will be one row above the highest point since it's the height of the tower
+        Point current = new Point(0, highestPoint);
+        Stack<Point> todo = new Stack<>(){{ add(current); }};
+        HashSet<Point> visited = new HashSet<>();
+        while (!todo.isEmpty()) {
+            Point next = todo.pop();
+            visited.add(next);
+            if (points.contains(next)) {
+                continue;
+            }
+            addAdjacent(next, visited, todo);
+        }
+        points.retainAll(visited);
+    }
+
+    void addAdjacent(Point point, HashSet<Point> visited, Stack<Point> todo) {
+        ArrayList<Point> adjacent = new ArrayList<>(){{
+            add(new Point(point.x - 1, point.y));
+            add(new Point(point.x + 1, point.y));
+            add(new Point(point.x, point.y - 1));
+        }};
+        adjacent
+                .stream()
+                .filter(p -> !visited.contains(p))
+                .filter(p -> p.x >= 0 && p.x < width)
+                .forEach(todo::add);
     }
 
     boolean canPlace(Rock rock) {
         for (Point point : rock.points) {
-            if (points.contains(point) || point.y < 0 || point.x < 0 || point.x >= width) {
+            if (points.contains(point) || point.x < 0 || point.x >= width) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    boolean contains(Point point) {
+        return this.points.contains(point);
+    }
+
+    // compare 'roof' shape of a grid
+    boolean hasSameShape(Grid other) {
+        if (points.size() != other.points.size()) {
+            return false;
+        }
+        // transform points so they have the same height as if they were in the other grid
+        long deltaY = other.highestPoint - highestPoint;
+        for (Point point : points) {
+            if (!other.contains(new Point(point.x, point.y + deltaY))) {
                 return false;
             }
         }
@@ -100,123 +280,66 @@ class Grid {
 }
 
 public class Day17 {
-    static private final Point LEFT = new Point(-1, 0);
-    static private final Point RIGHT = new Point(1, 0);
-    static private final Point DOWN = new Point(0, -1);
-    static private final Point UP = new Point(0, 1);
-    Grid grid = new Grid();
-    long numRocks = 0;
-    Rock currentRock = null;
 
     public static void main(String[] args) throws IOException {
         String filename = "inputs/17.txt";
         byte[] content = Files.readAllBytes(Paths.get(filename));
         Day17 solver = new Day17();
-        long p1 = solver.solve(content, 2023);
-        System.out.println(p1);
+        long p1 = solver.partOne(content, 2022);
+        System.out.printf("P1: %d\n", p1);
+
+        long p2 = solver.partTwo(UniqueState.defaultState(content), 1000000000000L);
+        System.out.println(p2);
     }
 
-
-    // Consideration: left most point has X = 0, lowest point has Y = 0
-    // This way we can do y += highestPoint + 3 and x += 2
-    // 0 -> (TL = (0, 0)
-    // ####
-
-    // 1 -> (L = (0, 1)), (B = (1, 0)
-    // .#.
-    // ###
-    // .#.
-
-    // 2 -> L = (0, 0)
-    // ..#
-    // ..#
-    // ###
-
-    // 3 -> B = (0, 0)
-    // #
-    // #
-    // #
-    // #
-
-    // ##
-    // ##
-    ArrayList<Point> getNewRockPoints() {
-        ArrayList<Point> points = new ArrayList<>();
-        int type = (int)(numRocks % 5);
-        if (type == 0) {
-            for (int x = 0; x < 4; x++) {
-                points.add(new Point(x, 0));
-            }
-        } else if (type == 1) {
-            points.add(new Point(0, 1));
-            points.add(new Point(1, 1));
-            points.add(new Point(2, 1));
-            points.add(new Point(1, 0));
-            points.add(new Point(1, 2));
-        } else if (type == 2) {
-            for (int x = 0; x < 3; x++) {
-                points.add(new Point(x, 0));
-            }
-            points.add(new Point(2, 1));
-            points.add(new Point(2, 2));
-        } else if (type == 3) {
-            for (int y = 0; y < 4; y++) {
-                points.add(new Point(0, y));
-            }
-        } else if (type == 4) {
-            for (int x = 0; x < 2; x++) {
-                for (int y = 0; y < 2; y++) {
-                    points.add(new Point(x, y));
-                }
-            }
+    long partOne(byte[] content, long maxRocks) {
+        UniqueState state = UniqueState.defaultState(content);
+        while (state.numRocks < maxRocks) {
+            state = UniqueState.f(state, content);
         }
-        return points;
+        return state.getHighestPoint();
     }
 
-    Point getNewRockPosition() {
-        return new Point(2, grid.highestPoint + 3);
-    }
-
-    void nextRock() {
-        if (currentRock != null) {
-            grid.addRock(currentRock);
+    long computeHeight(long cycleHeightChange, long cycleStart, long cycleDuration, long maxRocks, UniqueState cycleStartState) {
+        long numCycles = (maxRocks - cycleStart) / cycleDuration;
+        System.out.printf("number of cycles: %d\n", numCycles);
+        long iterations = (maxRocks - cycleStart) % cycleDuration;
+        System.out.printf("remaining iterations in cycle: %d\n", iterations);
+        while (iterations > 0) {
+            cycleStartState = cycleStartState.next();
+            iterations--;
         }
-        currentRock = new Rock(getNewRockPoints());
-        Point transformation = getNewRockPosition();
-        currentRock = currentRock.move(transformation);
-        numRocks++;
-        if (numRocks % 1000000 == 0) {
-            System.out.printf("PROCESSED: %d\n", numRocks);
-        }
+        return cycleStartState.getHighestPoint() + cycleHeightChange * numCycles;
     }
 
-    // move rock if possible
-    // returns false and doesn't modify currentRock if not possible
-    boolean moveRock(Point delta) {
-        Rock next = currentRock.move(delta);
-        if (grid.canPlace(next)) {
-            currentRock = next;
-            return true;
+    // cycle detection
+    long partTwo(UniqueState initial, long maxRocks) {
+        UniqueState tortoise = initial.next();
+        UniqueState hare = initial.next().next();
+        while (!tortoise.equals(hare)) {
+            tortoise = tortoise.next();
+            hare = hare.next().next();
         }
-        return false;
-    }
 
-    long solve(byte[] content, long maxRocks) {
-        nextRock();
-        int contentIndex = 0;
-        while (numRocks < maxRocks) {
-           byte direction = content[contentIndex % content.length];
-           if (direction == '>') {
-                moveRock(RIGHT);
-           } else if (direction == '<') {
-               moveRock(LEFT);
-           }
-           if (!moveRock(DOWN)) {
-               // cannot move down so the rock rests
-               nextRock();
-           }
-           contentIndex++;
-       }
-       return grid.highestPoint;
+        // mu = position of first repetition
+        int mu = 0;
+        tortoise = initial;
+        while (!tortoise.equals(hare)) {
+            tortoise = tortoise.next();
+            hare = hare.next();
+            mu += 1;
+        }
+
+        // lambda = length of the cycle
+        int lambda = 1;
+        hare = tortoise.next();
+        while (!tortoise.equals(hare)) {
+            hare = hare.next();
+            lambda += 1;
+        }
+        // cycle change in height will be hare.height() - tortoise.height();
+        // cycle change in numRocks will be equal to lambda
+        long cycleHeightChange = hare.getHighestPoint() - tortoise.getHighestPoint();
+        return computeHeight(cycleHeightChange, mu, lambda, maxRocks, tortoise);
     }
 }
