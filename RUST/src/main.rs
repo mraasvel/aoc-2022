@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    io::BufRead,
-};
+use std::{collections::HashMap, io::BufRead};
 
-const TIME_LIMIT: i32 = 30;
+const TIME_LIMIT: i32 = 26;
 
 #[derive(Debug, Clone)]
 struct Worker {
@@ -63,17 +60,18 @@ impl Valve {
 
 #[derive(Clone, Debug)]
 struct State {
-me: Worker,
+    me: Worker,
+    elephant: Worker,
     opened: Vec<bool>,
 }
 
 impl State {
-    fn new(me: Worker, opened: Vec<bool>) -> State {
-        State { me, opened }
+    fn new(me: Worker, elephant: Worker, opened: Vec<bool>) -> State {
+        State { me, elephant, opened }
     }
 
-    fn get_worker(&self) -> &Worker {
-        &self.me
+    fn get_score(&self) -> i32 {
+        self.me.score + self.elephant.score
     }
 }
 
@@ -89,6 +87,7 @@ impl Solver {
 
     fn initial_state(&self, start: usize) -> State {
         State::new(
+            Worker::new(start),
             Worker::new(start),
             self.valves
                 .iter()
@@ -111,16 +110,26 @@ impl Solver {
                 .enumerate()
                 .filter(|&(index, _)| !next.opened[index])
                 .filter_map(|(index, valve)| {
-                    let worker = next.get_worker();
+                    let is_me = next.me.minute < next.elephant.minute;
+                    let worker = if is_me {
+                        &next.me
+                    } else {
+                        &next.elephant
+                    };
+
                     let cost = 1 + valve.distance(worker.position) as i32;
                     if !worker.can_do_move(cost) {
                         None
                     } else {
-                        let me = worker.move_to(cost, index, valve.flow_rate);
+                        let worker = worker.move_to(cost, index, valve.flow_rate);
+                        let (me, elephant) = if is_me {
+                            (worker, next.elephant.clone())
+                        } else {
+                            (next.me.clone(), worker)
+                        };
                         Some(State {
-                            // assign to different worker in p2
                             me,
-                            // copy opened vector: set new open value to true
+                            elephant,
                             opened: next
                                 .opened
                                 .iter()
@@ -132,12 +141,13 @@ impl Solver {
                 });
 
             states.extend(iter);
-            if state.is_none() || next.me.score > state.as_ref().unwrap().me.score {
+            if state.is_none() || next.get_score() > state.as_ref().unwrap().get_score() {
+                println!("new -> {:?}", next.get_score());
                 state = Some(next);
             }
         }
         dbg!(&state);
-        state.unwrap().me.score
+        state.unwrap().get_score()
     }
 }
 
@@ -227,7 +237,7 @@ fn parse(filename: &str) -> (usize, Vec<Valve>) {
             valves.push(Valve::new(node.flow_rate));
         }
     }
-    for i in 0 .. names.len() {
+    for i in 0..names.len() {
         for name in &names {
             let distance = graph[&names[i]].distances[name];
             valves[i].distances.push(distance as usize);
@@ -238,7 +248,7 @@ fn parse(filename: &str) -> (usize, Vec<Valve>) {
 }
 
 fn main() {
-    let filename = "ex.txt";
+    let filename = "input.txt";
     let (start, valves) = parse(filename);
     let mut solver = Solver::new(valves);
     let p1 = solver.part_one(start);
