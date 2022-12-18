@@ -93,13 +93,10 @@ public class Day18 {
         HashSet<Point3D> visited = new HashSet<>();
         Point3D start = new Point3D(minimumValues);
         Stack<Point3D> todo = new Stack<>() {{ add(start); }};
+        visited.add(start);
         int surface = 0;
         while (!todo.isEmpty()) {
             Point3D next = todo.pop();
-            if (visited.contains(next)) {
-                continue;
-            }
-            visited.add(next);
             for (Point3D adj : adjacentPoints(next)) {
                 if (!isInBounds(adj)) {
                     if (points.contains(adj)) {
@@ -108,6 +105,7 @@ public class Day18 {
                 } else if (points.contains(adj)) {
                     surface += 1;
                 } else if (!visited.contains(adj)) {
+                    visited.add(adj);
                     todo.add(adj);
                 }
             }
