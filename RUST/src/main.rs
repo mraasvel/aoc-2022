@@ -20,7 +20,7 @@ impl Worker {
 
     // cost should include cost to open valve aka distance + 1
     fn move_to(&self, cost: i32, valve: usize, flow_rate: i32) -> Worker {
-        assert!(cost + self.minute < TIME_LIMIT);
+        debug_assert!(cost + self.minute < TIME_LIMIT);
         let minute = self.minute + cost;
         let score = self.score + flow_rate * (TIME_LIMIT - minute);
         Worker {
@@ -142,7 +142,7 @@ impl Solver {
 
             states.extend(iter);
             if state.is_none() || next.get_score() > state.as_ref().unwrap().get_score() {
-                println!("new -> {:?}", next.get_score());
+                // println!("new -> {:?}", next.get_score());
                 state = Some(next);
             }
         }

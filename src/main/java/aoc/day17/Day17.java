@@ -3,15 +3,20 @@ package aoc.day17;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Stack;
+import java.util.*;
 import java.util.stream.Collectors;
 
 class UniqueState {
     static private final Point LEFT = new Point(-1, 0);
     static private final Point RIGHT = new Point(1, 0);
     static private final Point DOWN = new Point(0, -1);
+    static private final Point[][] SHAPES = {
+            { new Point(0, 0), new Point(1, 0), new Point(2, 0), new Point(3, 0) },
+            { new Point(0, 1), new Point(1, 1), new Point(2, 1), new Point(1, 0), new Point(1, 2) },
+            { new Point(0, 0), new Point(1, 0), new Point(2, 0), new Point(2, 1), new Point(2, 2) },
+            { new Point(0, 0), new Point(0, 1), new Point(0, 2), new Point(0, 3) },
+            { new Point(0, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1) },
+    };
     int directionIndex;
     long numRocks;
     Grid grid;
@@ -43,36 +48,8 @@ class UniqueState {
         return next;
     }
 
-    private ArrayList<Point> getNewRockPoints(int type) {
-        ArrayList<Point> points = new ArrayList<>();
-        if (type == 0) {
-            for (int x = 0; x < 4; x++) {
-                points.add(new Point(x, 0));
-            }
-        } else if (type == 1) {
-            points.add(new Point(0, 1));
-            points.add(new Point(1, 1));
-            points.add(new Point(2, 1));
-            points.add(new Point(1, 0));
-            points.add(new Point(1, 2));
-        } else if (type == 2) {
-            for (int x = 0; x < 3; x++) {
-                points.add(new Point(x, 0));
-            }
-            points.add(new Point(2, 1));
-            points.add(new Point(2, 2));
-        } else if (type == 3) {
-            for (int y = 0; y < 4; y++) {
-                points.add(new Point(0, y));
-            }
-        } else if (type == 4) {
-            for (int x = 0; x < 2; x++) {
-                for (int y = 0; y < 2; y++) {
-                    points.add(new Point(x, y));
-                }
-            }
-        }
-        return points;
+    static private List<Point> getNewRockPoints(int type) {
+        return Arrays.stream(SHAPES[type]).collect(Collectors.toCollection(ArrayList::new));
     }
 
     Point getNewRockPosition() {
@@ -166,14 +143,13 @@ class Point {
 
 
 class Rock {
-    ArrayList<Point> points;
+    List<Point> points;
 
-    Rock(ArrayList<Point> points) {
+    Rock(List<Point> points) {
         this.points = points;
     }
 
-    // true if move was possible and happened
-    // updates grid as appropriate
+    // apply delta to all points that make up the rock
     Rock move(Point delta) {
         return new Rock(
                 points
@@ -234,6 +210,7 @@ class Grid {
             }
             addAdjacent(next, visited, todo);
         }
+        // set intersection of points (blocks) and visited (reachable) nodes
         points.retainAll(visited);
     }
 
@@ -268,7 +245,7 @@ class Grid {
         if (points.size() != other.points.size()) {
             return false;
         }
-        // transform points so they have the same height as if they were in the other grid
+        // transform points so that they have the same height as if they were in the other grid
         long deltaY = other.highestPoint - highestPoint;
         for (Point point : points) {
             if (!other.contains(new Point(point.x, point.y + deltaY))) {
@@ -295,7 +272,7 @@ public class Day17 {
     long partOne(byte[] content, long maxRocks) {
         UniqueState state = UniqueState.defaultState(content);
         while (state.numRocks < maxRocks) {
-            state = UniqueState.f(state, content);
+            state = state.next();
         }
         return state.getHighestPoint();
     }
@@ -303,11 +280,11 @@ public class Day17 {
     long computeHeight(long cycleHeightChange, long cycleStart, long cycleDuration, long maxRocks, UniqueState cycleStartState) {
         long numCycles = (maxRocks - cycleStart) / cycleDuration;
         System.out.printf("number of cycles: %d\n", numCycles);
-        long iterations = (maxRocks - cycleStart) % cycleDuration;
-        System.out.printf("remaining iterations in cycle: %d\n", iterations);
-        while (iterations > 0) {
+        long remainingIterations = (maxRocks - cycleStart) % cycleDuration;
+        System.out.printf("remaining iterations in cycle: %d\n", remainingIterations);
+        while (remainingIterations > 0) {
             cycleStartState = cycleStartState.next();
-            iterations--;
+            remainingIterations--;
         }
         return cycleStartState.getHighestPoint() + cycleHeightChange * numCycles;
     }
@@ -337,8 +314,8 @@ public class Day17 {
             hare = hare.next();
             lambda += 1;
         }
-        // cycle change in height will be hare.height() - tortoise.height();
-        // cycle change in numRocks will be equal to lambda
+        // the cycle's change in height is hare.height() - tortoise.height();
+        // the cycle's change in numRocks will be equal to lambda
         long cycleHeightChange = hare.getHighestPoint() - tortoise.getHighestPoint();
         return computeHeight(cycleHeightChange, mu, lambda, maxRocks, tortoise);
     }

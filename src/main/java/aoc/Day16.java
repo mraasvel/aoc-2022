@@ -309,7 +309,7 @@ public class Day16 {
     }
 
     public static void main(String[] args) throws IOException {
-        String filename = "inputs/ex.txt";
+        String filename = "inputs/16.txt";
         Day16 solver = new Day16(filename);
         int p1 = solver.partOne();
         System.out.println(p1);
