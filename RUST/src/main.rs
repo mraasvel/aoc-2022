@@ -100,9 +100,7 @@ impl Solver {
         let state = self.initial_state(start);
         let mut states = vec![state];
         let mut state: Option<State> = None;
-        while !states.is_empty() {
-            let next = states.pop().unwrap();
-
+        while let Some(next) = states.pop() {
             // cannot put this in a seperate function because the borrow checker doesn't understand the valves reference
             let iter = self
                 .valves
