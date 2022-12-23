@@ -9,6 +9,22 @@ import java.util.*;
 
 
 public class Day23 {
+    static private final Point N = new Point(0, -1);
+    static private final Point NE = new Point(1, -1);
+    static private final Point NW = new Point(-1, -1);
+    static private final Point S = new Point(0, 1);
+    static private final Point SE = new Point(1, 1);
+    static private final Point SW = new Point(-1, 1);
+    static private final Point E = new Point(1, 0);
+    static private final Point W = new Point(-1, 0);
+    static ArrayDeque<List<Point>> directions = new ArrayDeque<>() {{
+        add(new ArrayList<>() {{ add(N); add(NE); add(NW); }});
+        add(new ArrayList<>() {{ add(S); add(SE); add(SW); }});
+        add(new ArrayList<>() {{ add(W); add(NW); add(SW); }});
+        add(new ArrayList<>() {{ add(E); add(NE); add(SE); }});
+    }};
+    static boolean moved = false;
+
     static Set<Point> parse(String filename) throws IOException {
         HashSet<Point> set = new HashSet<>();
         List<String> lines = Files.readAllLines(Paths.get(filename));
@@ -27,80 +43,56 @@ public class Day23 {
         return set;
     }
 
-    static private final Point N = new Point(0, -1);
-    static private final Point NE = new Point(1, -1);
-    static private final Point NW = new Point(-1, -1);
-    static private final Point S = new Point(0, 1);
-    static private final Point SE = new Point(1, 1);
-    static private final Point SW = new Point(-1, 1);
-    static private final Point E = new Point(1, 0);
-    static private final Point W = new Point(-1, 0);
-
-    static boolean containsNone(Set<Point> state, Point from, Point to_a, Point to_b, Point to_c) {
-        Point a = from.add(to_a);
-        Point b = from.add(to_b);
-        Point c = from.add(to_c);
-        return !(state.contains(a) || state.contains(b) || state.contains(c));
+    static boolean containsNone(Set<Point> state, Point from, List<Point> deltas) {
+        for (Point delta : deltas) {
+            if (state.contains(from.add(delta))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static boolean hasAdjacent(Set<Point> state, Point point) {
-        return state.contains(point.add(N))
-                || state.contains(point.add(NE))
-                || state.contains(point.add(NW))
-                || state.contains(point.add(S))
-                || state.contains(point.add(SE))
-                || state.contains(point.add(SW))
-                || state.contains(point.add(E))
-                || state.contains(point.add(W))
-        ;
+        return directions
+                .stream()
+                .flatMap(List::stream)
+                .map(dir -> state.contains(point.add(dir)))
+                .reduce(false, (b, r) -> r || b);
     }
-
-    static ArrayDeque<List<Point>> directions = new ArrayDeque<>() {{
-        add(new ArrayList<>() {{ add(N); add(NE); add(NW); }});
-        add(new ArrayList<>() {{ add(S); add(SE); add(SW); }});
-        add(new ArrayList<>() {{ add(W); add(NW); add(SW); }});
-        add(new ArrayList<>() {{ add(E); add(NE); add(SE); }});
-    }};
-
-    static boolean moved = false;
 
     static Set<Point> doRound(Set<Point> state) {
         moved = false;
-        Set<Point> next = new HashSet<>();
         // newPosition -> oldPosition
         Map<Point, Point> movedPoints = new HashMap<>();
-        Set<Point> allMovedPoints = new HashSet<>();
+        Set<Point> takenPoints = new HashSet<>();
         for (Point point: state) {
             Point newPosition = null;
+            // check if point can move
             if (hasAdjacent(state, point)) {
                 for (List<Point> dir : directions) {
-                    Point a = dir.get(0);
-                    Point b = dir.get(1);
-                    Point c = dir.get(2);
-                    if (containsNone(state, point, a, b, c)) {
-                        newPosition = point.add(a);
+                    if (containsNone(state, point, dir)) {
+                        newPosition = point.add(dir.get(0));
                         break;
                     }
                 }
             }
-            if (newPosition != null) {
-                if (allMovedPoints.contains(newPosition)) {
-                    if (movedPoints.containsKey(newPosition)) {
-                        Point oldPosition = movedPoints.remove(newPosition);
-                        next.add(oldPosition);
-                    }
-                    next.add(point);
-                } else {
-                    movedPoints.put(newPosition, new Point(point));
-                    allMovedPoints.add(newPosition);
+            if (newPosition == null) {
+                movedPoints.put(point, point);
+                continue;
+            }
+            moved = true;
+            if (takenPoints.contains(newPosition)) {
+                if (movedPoints.containsKey(newPosition)) {
+                    Point oldPosition = movedPoints.remove(newPosition);
+                    movedPoints.put(oldPosition, oldPosition);
                 }
+                movedPoints.put(point, point);
             } else {
-                next.add(point);
+                movedPoints.put(newPosition, new Point(point));
+                takenPoints.add(newPosition);
             }
         }
-        next.addAll(movedPoints.keySet());
-        moved = movedPoints.size() > 0;
-        return next;
+        return movedPoints.keySet();
     }
 
     static Point getMax(Set<Point> elves) {
